@@ -1,0 +1,152 @@
+package com.cisco.test;
+
+import java.net.InetAddress;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.TimeZone;
+
+import lib.cisco.util.AppTestDTO;
+import lib.cisco.util.ApplicationUtility;
+import lib.cisco.util.LocalDriverFactory;
+import lib.cisco.util.Report;
+
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.search.SearchHit;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
+
+import com.mongodb.BasicDBList;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DB;
+import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
+import com.mongodb.DBObject;
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
+
+import lib.cisco.util.ApplicationUtility;
+public class Demo {
+
+	public static void main(String[] args) throws ParseException, InterruptedException {
+//		String dbURI = "mongodb://userrole_user:mongo123@mngdb-ebf-lt-01.cisco.com:27048/userrole_db";
+//		  MongoClientURI uri = new MongoClientURI(dbURI);
+//		  MongoClient mongoClient = new MongoClient(uri);
+//		  DB db = mongoClient.getDB("userrole_db");
+//		  DBCollection collection=db.getCollection("final_user_contract_sl_TS2__1M_2");
+		  
+			     /* List<DBObject> dbObjectList = new ArrayList<DBObject>();
+			      dbObjectList.add(new BasicDBObject("$sample", new BasicDBObject("size",recordCount)));*/
+//			      DBCursor documents = collection.find(new BasicDBObject("ccouserId", "toshiba-it"));
+//			      for (DBObject dbObject : documents)
+//			      {
+//			    	  BasicDBObject doc = (BasicDBObject) dbObject;
+//			    	  BasicDBList serviceList=(BasicDBList) doc.get("serviceLines");
+//			    	  final String ccouserId = (String) doc.get("ccouserId");
+//			    	  String contractNumber = (String) doc.get("contractNumber");
+//			    	  System.out.println(ccouserId+":"+contractNumber);
+//			    	  for(int i = 0; i< serviceList.size() ; i++){
+//			    		  BasicDBObject serviceDB = (BasicDBObject)serviceList.get(i);
+//			    		  //Date date=serviceDB.getDate("slCreationDate");
+//			    		  //System.out.println(date);
+//			    		 // String mongodateString=serviceDB.getString("slCreationDate");
+//			    		  Date date1=serviceDB.getDate("slCreationDate");
+//			    		  DateTime dateTime = new DateTime(date1.getTime(), DateTimeZone.UTC);
+//			    		  System.out.println(dateTime.getDayOfMonth()+"/"+dateTime.getMonthOfYear()+"/"+dateTime.getYear());
+////			    		  System.out.println("####slCreationDate Actually exist in  mongo(ISODate(2015-06-17T18:56:36.000Z()))#####:"+serviceDB.getDate("slCreationDate"));
+////			    		  DateFormat df = new SimpleDateFormat("E MMM dd HH:mm:ss Z yyyy");
+////			    		  df.setTimeZone(TimeZone.getTimeZone("UTC"));
+////			    		  
+////			    		  String mongoDate=df.format(date1);
+////			    		  System.out.println("UTC date:"+mongoDate);
+////			    		  
+////			    		  //DateFormat df1 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+////			    		  Date date = df.parse(mongoDate);
+////			    		  String dateString2 = df1.format(mongoDate);
+//			    		  //System.out.println("UTC date111:"+);
+//			    		  
+//			    	  }
+		//		      }
+
+		String qe = "{\"size\":1,\"_source\":{\"include\":[\"itemFamilyId\",\"inventoryItemId\",\"mdfLeafNodeId\",\"C\",\"U\"]},\"query\":{\"bool\":{\"filter\":[{\"term\":{\"mdfLeafNodeId\":283444903}},{\"has_parent\":{\"type\":\"container_type\",\"query\":{\"bool\":{\"filter\":{\"has_child\":{\"type\":\"user_type\",  \"query\":{\"term\":{\"U\":{\"value\":\"X:csw_add_approver1\"}}}}}}}}}]}}}";
+		System.out.println("qe is  :"+qe);
+		
+		
+		String UValue = "X:csw_add_approver1";
+		String MDFValue = "283444903";
+		String qe2 = "{\"query\":{\"bool\":{\"filter\":[{\"term\":{\"mdfLeafNodeId\":"+MDFValue+"}},{\"has_parent\":{\"type\":\"container_type\",\"query\":{\"bool\":{\"filter\":{\"has_child\":{\"type\":\"user_type\",  \"query\":{\"term\":{\"U\":{\"value\":\""+UValue+"\"}}}}}}}}}]}}}";
+		System.out.println("qe2 is  :"+qe2);
+		Demo d = new Demo();
+		String res = d.JustFun(qe2);
+			
+		System.out.println(res);
+	}
+	public String JustFun(String StrQuery) throws InterruptedException{            
+	      String FinalResponse=null;
+	      try {
+//	    	  logMessage("Creating connection for Elastic search", "Connection must be created", "connection created","passed");
+	        TransportClient client = null;
+	        Settings setting = Settings.settingsBuilder().put("client.transport.sniff", false)
+	            .put("cluster.name", "EntitlementBasePOE01").put("tcp_send_buffer_size", 524288)
+	            .put("tcp_receive_buffer_size", 32768 * 2).put("transport.tcp.compress", false)
+	            .put("transport.netty.workerCount", 16).put("transport.tcp.compress", false)
+	            .put("client.transport.ping_timeout", "60s").put("threadpool.bulk.queue_size", "3000").build();
+	        client = TransportClient.builder().settings(setting).build();
+	        final int port = 9300;     
+	        client.addTransportAddress((TransportAddress) new InetSocketTransportAddress(InetAddress.getByName("cits-eb-esn-poe-001.cisco.com"), port));
+	        String query =StrQuery;  
+	        SearchResponse searchResponse = client.prepareSearch("access_attribute_subscription_index_v1").setTypes("attribute_type").setSearchType(SearchType.QUERY_AND_FETCH).setQuery(query).setSize(200).execute().actionGet();
+	        System.err.println("Search Response" +searchResponse.toString());
+	        
+	        SearchHit[] hits = searchResponse.getHits().getHits();
+	        StringBuilder response = new StringBuilder("{ ");
+	        response.append("\"status\" : " + (searchResponse.status().equals(searchResponse.status().OK) ? "\"success\"" : "\"Failed\""));
+	        response.append(" , ");
+	        long totalCount = searchResponse.getHits().getTotalHits();
+	        response.append("\"count\" : " + totalCount);
+	        response.append(" , ");
+	        response.append(" \"data\" : [");
+	        int counter = 0;
+	        for(SearchHit hit : hits) {
+	          String result = hit.getSourceAsString();
+	          response.append(result);
+	          counter++;
+	          if(totalCount > 1 && counter != totalCount) {
+	            response.append(" , ");
+	          }
+	        }
+	        response.append(" ] ");
+	        response.append(" } ");
+
+	      //  System.out.println("the counter is "+counter);
+	      //  System.out.println(response.toString());
+	        FinalResponse=response.toString();
+
+	        JSONObject jsonObject = (JSONObject) JSONValue.parseWithException(response.toString());
+
+	        if (jsonObject.get("status").toString().equalsIgnoreCase("success")) {
+//	          System.out.println("Sucess Message is Displayed");    
+	          client.close();
+	          //return response.toString();
+	        } else {
+//	          System.out.println("Sucess Message is Displayed");
+	          client.close();
+	          //return response.toString();
+	        }
+
+	      } catch (Exception e) {
+	        e.printStackTrace();
+	      }
+	      return FinalResponse;
+	    }
+
+
+}
